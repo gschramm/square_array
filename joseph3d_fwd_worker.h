@@ -1,6 +1,6 @@
 #pragma once
 #include "cuda_compat.h"
-#include "ray_cube_intersection.h"
+#include "utils.h"
 
 // we need to import math.h for the floor, ceil, sqrtf if not compiling for CUDA
 #ifndef __CUDA_ARCH__

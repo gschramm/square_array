@@ -1,7 +1,16 @@
 #pragma once
 #include "cuda_compat.h"
 
-WORKER_QUALIFIER unsigned char ray_cube_intersection(float orig0,
+WORKER_QUALIFIER inline void atomic_sum(float* target, float value) {
+#ifdef __CUDA_ARCH__
+    atomicAdd(target, value);
+#else
+#pragma omp atomic
+    *target += value;
+#endif
+}
+
+WORKER_QUALIFIER inline unsigned char ray_cube_intersection(float orig0,
                                                      float orig1,
                                                      float orig2,
                                                      float bounds0_min,
