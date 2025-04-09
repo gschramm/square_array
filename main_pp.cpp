@@ -122,7 +122,7 @@ int main() {
     float *img_fwd;
     cudaMallocManaged(&img_fwd, nlors * sizeof(float));
 
-    joseph3d_fwd_cuda(xstart, xend, img, img_origin, voxsize, img_fwd, nlors, img_dim, 0, 64);
+    joseph3d_fwd(xstart, xend, img, img_origin, voxsize, img_fwd, nlors, img_dim, 0, 64);
 
     // calculate the expected values
 

@@ -68,14 +68,14 @@ __device__ unsigned char ray_cube_intersection_cuda(float orig0,
 }
 
 
-__global__ void joseph3d_fwd_cuda_kernel(const float *xstart, 
-                                         const float *xend, 
-                                         const float *img,
-                                         const float *img_origin, 
-                                         const float *voxsize, 
-                                         float *p,
-                                         long long nlors, 
-                                         const int *img_dim)
+__global__ void joseph3d_fwd_kernel(const float *xstart, 
+                                    const float *xend, 
+                                    const float *img,
+                                    const float *img_origin, 
+                                    const float *voxsize, 
+                                    float *p,
+                                    long long nlors, 
+                                    const int *img_dim)
 {
   long long i = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -405,16 +405,16 @@ __global__ void joseph3d_fwd_cuda_kernel(const float *xstart,
 
 
 extern "C" 
-void joseph3d_fwd_cuda(const float *xstart, 
-                       const float *xend, 
-                       const float *img,
-                       const float *img_origin, 
-                       const float *voxsize, 
-                       float *p,
-                       long long nlors, 
-                       const int *img_dim,
-                       int device_id,
-                       int threadsperblock)
+void joseph3d_fwd(const float *xstart, 
+                  const float *xend, 
+                  const float *img,
+                  const float *img_origin, 
+                  const float *voxsize, 
+                  float *p,
+                  long long nlors, 
+                  const int *img_dim,
+                  int device_id,
+                  int threadsperblock)
 {
 
     const float* d_xstart = nullptr;
@@ -467,7 +467,7 @@ void joseph3d_fwd_cuda(const float *xstart,
 
 
     int num_blocks = (int)((nlors + threadsperblock- 1) / threadsperblock);
-    joseph3d_fwd_cuda_kernel<<<num_blocks,threadsperblock>>>(d_xstart, d_xend, d_img, 
+    joseph3d_fwd_kernel<<<num_blocks,threadsperblock>>>(d_xstart, d_xend, d_img, 
                                          d_img_origin, d_voxsize, 
                                          d_p, nlors, d_img_dim);
     cudaDeviceSynchronize();

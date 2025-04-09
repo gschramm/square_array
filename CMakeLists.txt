@@ -37,7 +37,7 @@ if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     find_package(CUDAToolkit REQUIRED)
     
-    add_library(parallelproj SHARED parallelproj.cu)
+    add_library(parallelproj SHARED joseph3d_fwd.cu)
     target_link_libraries(parallelproj PRIVATE CUDA::cudart)
 
     add_executable(main main_pp.cpp)
