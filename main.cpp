@@ -3,7 +3,8 @@
 #include <chrono>
 #include <cmath>
 
-int main() {
+int main()
+{
     const size_t repetitions = 5;
     size_t nlors = 10;
 
@@ -18,11 +19,12 @@ int main() {
     float voxsize[3] = {4, 3, 2};
 
     float img_origin[3];
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 3; ++i)
+    {
         img_origin[i] = (-(float)img_dim[i] / 2 + 0.5) * voxsize[i];
     }
 
-    float* img = new float[img_dim[0] * img_dim[1] * img_dim[2]];
+    float *img = new float[img_dim[0] * img_dim[1] * img_dim[2]];
 
     // fill the test image
     for (int i0 = 0; i0 < img_dim[0]; i0++)
@@ -44,28 +46,28 @@ int main() {
     float id2 = static_cast<float>(img_dim[2]);
 
     float vstart[] = {
-        0, -1, 0,           // 0
-        0, -1, 0,           // 1
-        0, -1, 1,           // 2
-        0, -1, 0.5,         // 3
-        0, 0, -1,           // 4
-        -1, 0, 0,           // 5
-        id0 - 1, -1, 0,      // 6 - (shifted 1)
+        0, -1, 0,             // 0
+        0, -1, 0,             // 1
+        0, -1, 1,             // 2
+        0, -1, 0.5,           // 3
+        0, 0, -1,             // 4
+        -1, 0, 0,             // 5
+        id0 - 1, -1, 0,       // 6 - (shifted 1)
         id0 - 1, -1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, -1,      // 8 - (shifted 4)
+        id0 - 1, 0, -1,       // 8 - (shifted 4)
         id0 - 1, id1 - 1, -1, // 9 - (shifted 8)
     };
 
     float vend[] = {
-        0, id1, 0,           // 0
-        0, id1, 0,           // 1
-        0, id1, 1,           // 2
-        0, id1, 0.5,         // 3
-        0, 0, id2,           // 4
-        id0, 0, 0,           // 5
-        id0 - 1, id1, 0,      // 6 - (shifted 1)
+        0, id1, 0,             // 0
+        0, id1, 0,             // 1
+        0, id1, 1,             // 2
+        0, id1, 0.5,           // 3
+        0, 0, id2,             // 4
+        id0, 0, 0,             // 5
+        id0 - 1, id1, 0,       // 6 - (shifted 1)
         id0 - 1, id1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, id2,      // 8 - (shifted 4)
+        id0 - 1, 0, id2,       // 8 - (shifted 4)
         id0 - 1, id1 - 1, id2, // 9 - (shifted 8)
     };
 
@@ -77,7 +79,7 @@ int main() {
     }
 
     // calculate the start and end coordinates in world coordinates
-    
+
     float *xstart = new float[3 * nlors];
     float *xend = new float[3 * nlors];
 
@@ -103,7 +105,7 @@ int main() {
     int retval = 0;
     float eps = 1e-7;
 
-    float* expected_fwd_vals = new float[nlors];
+    float *expected_fwd_vals = new float[nlors];
     // initialize expected_fwd_vals with 0s
     for (int ir = 0; ir < nlors; ir++)
     {
@@ -185,13 +187,15 @@ int main() {
 
     // test the back projection
 
-    float* bimg = new float[img_dim[0] * img_dim[1] * img_dim[2]];
-    for (size_t i = 0; i < (img_dim[0]*img_dim[1]*img_dim[2]); i++){
+    float *bimg = new float[img_dim[0] * img_dim[1] * img_dim[2]];
+    for (size_t i = 0; i < (img_dim[0] * img_dim[1] * img_dim[2]); i++)
+    {
         bimg[i] = 0;
     }
 
-    float* ones = new float[nlors];
-    for (size_t i = 0; i < nlors; i++){
+    float *ones = new float[nlors];
+    for (size_t i = 0; i < nlors; i++)
+    {
         ones[i] = 1;
     }
 

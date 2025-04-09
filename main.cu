@@ -4,7 +4,8 @@
 #include <chrono>
 #include <cmath>
 
-int main() {
+int main()
+{
     const size_t repetitions = 5;
     size_t nlors = 10;
 
@@ -20,25 +21,26 @@ int main() {
 
     cudaSetDevice(device_count - 1);
 
-    int* img_dim;
+    int *img_dim;
     cudaMallocManaged(&img_dim, 3 * sizeof(int));
     img_dim[0] = 2;
     img_dim[1] = 3;
     img_dim[2] = 4;
 
-    float* voxsize;
+    float *voxsize;
     cudaMallocManaged(&voxsize, 3 * sizeof(float));
     voxsize[0] = 4;
     voxsize[1] = 3;
     voxsize[2] = 2;
 
-    float* img_origin;
+    float *img_origin;
     cudaMallocManaged(&img_origin, 3 * sizeof(float));
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 3; ++i)
+    {
         img_origin[i] = (-(float)img_dim[i] / 2 + 0.5) * voxsize[i];
     }
 
-    float* img;
+    float *img;
     cudaMallocManaged(&img, (img_dim[0] * img_dim[1] * img_dim[2]) * sizeof(float));
 
     // fill the test image
@@ -61,28 +63,28 @@ int main() {
     float id2 = static_cast<float>(img_dim[2]);
 
     float vstart[] = {
-        0, -1, 0,           // 0
-        0, -1, 0,           // 1
-        0, -1, 1,           // 2
-        0, -1, 0.5,         // 3
-        0, 0, -1,           // 4
-        -1, 0, 0,           // 5
-        id0 - 1, -1, 0,      // 6 - (shifted 1)
+        0, -1, 0,             // 0
+        0, -1, 0,             // 1
+        0, -1, 1,             // 2
+        0, -1, 0.5,           // 3
+        0, 0, -1,             // 4
+        -1, 0, 0,             // 5
+        id0 - 1, -1, 0,       // 6 - (shifted 1)
         id0 - 1, -1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, -1,      // 8 - (shifted 4)
+        id0 - 1, 0, -1,       // 8 - (shifted 4)
         id0 - 1, id1 - 1, -1, // 9 - (shifted 8)
     };
 
     float vend[] = {
-        0, id1, 0,           // 0
-        0, id1, 0,           // 1
-        0, id1, 1,           // 2
-        0, id1, 0.5,         // 3
-        0, 0, id2,           // 4
-        id0, 0, 0,           // 5
-        id0 - 1, id1, 0,      // 6 - (shifted 1)
+        0, id1, 0,             // 0
+        0, id1, 0,             // 1
+        0, id1, 1,             // 2
+        0, id1, 0.5,           // 3
+        0, 0, id2,             // 4
+        id0, 0, 0,             // 5
+        id0 - 1, id1, 0,       // 6 - (shifted 1)
         id0 - 1, id1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, id2,      // 8 - (shifted 4)
+        id0 - 1, 0, id2,       // 8 - (shifted 4)
         id0 - 1, id1 - 1, id2, // 9 - (shifted 8)
     };
 
@@ -94,11 +96,11 @@ int main() {
     }
 
     // calculate the start and end coordinates in world coordinates
-    
+
     float *xstart;
-    cudaMallocManaged(&xstart, (3*nlors) * sizeof(float));
+    cudaMallocManaged(&xstart, (3 * nlors) * sizeof(float));
     float *xend;
-    cudaMallocManaged(&xend, (3*nlors) * sizeof(float));
+    cudaMallocManaged(&xend, (3 * nlors) * sizeof(float));
 
     for (int ir = 0; ir < nlors; ir++)
 
@@ -110,14 +112,12 @@ int main() {
         }
     }
 
-
     float *img_fwd;
     cudaMallocManaged(&img_fwd, nlors * sizeof(float));
 
     joseph3d_fwd(xstart, xend, img, img_origin, voxsize, img_fwd, nlors, img_dim, 0, 64);
 
     // calculate the expected values
-
 
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
@@ -126,7 +126,7 @@ int main() {
     int retval = 0;
     float eps = 1e-7;
 
-    float* expected_fwd_vals = new float[nlors];
+    float *expected_fwd_vals = new float[nlors];
     // initialize expected_fwd_vals with 0s
     for (int ir = 0; ir < nlors; ir++)
     {
@@ -218,4 +218,3 @@ int main() {
 
     return retval;
 }
-
