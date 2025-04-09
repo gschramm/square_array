@@ -134,7 +134,7 @@ int main() {
     int retval = 0;
     float eps = 1e-7;
 
-    float expected_fwd_vals[nlors];
+    float* expected_fwd_vals = new float[nlors];
     // initialize expected_fwd_vals with 0s
     for (int ir = 0; ir < nlors; ir++)
     {
@@ -222,6 +222,7 @@ int main() {
     cudaFree(xend);
     cudaFree(img_fwd);
 
+    free(expected_fwd_vals);
 
     return 0;
 }
