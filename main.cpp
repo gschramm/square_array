@@ -183,12 +183,73 @@ int main() {
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////
 
+    // test the back projection
+
+    float* bimg = new float[img_dim[0] * img_dim[1] * img_dim[2]];
+    for (size_t i = 0; i < (img_dim[0]*img_dim[1]*img_dim[2]); i++){
+        bimg[i] = 0;
+    }
+
+    float* ones = new float[nlors];
+    for (size_t i = 0; i < nlors; i++){
+        ones[i] = 1;
+    }
+
+    joseph3d_back(xstart, xend, bimg, img_origin, voxsize, ones, nlors, img_dim);
+
+    printf("\nback projection of ones along all rays:\n");
+    for (size_t i0 = 0; i0 < img_dim[0]; i0++)
+    {
+        for (size_t i1 = 0; i1 < img_dim[1]; i1++)
+        {
+            for (size_t i2 = 0; i2 < img_dim[2]; i2++)
+            {
+                printf("%.1f ", bimg[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+    // To test whether the back projection is correct, we test if the back projector is the adjoint
+    // of the forward projector. This is more practical than checking a lot of single voxels in the
+    // back projected image.
+
+    float inner_product1 = 0;
+    float inner_product2 = 0;
+
+    for (size_t i = 0; i < (img_dim[0] * img_dim[1] * img_dim[2]); i++)
+    {
+        inner_product1 += (img[i] * bimg[i]);
+    }
+
+    for (size_t ir = 0; ir < nlors; ir++)
+    {
+        inner_product2 += (img_fwd[ir] * ones[ir]);
+    }
+
+    float ip_diff = fabs(inner_product1 - inner_product2);
+
+    if (ip_diff > eps)
+    {
+        printf("\n#########################################################################");
+        printf("\nback projection test failed. back projection seems not to be the adjoint.");
+        printf("\n %.7e", ip_diff);
+        printf("\n#########################################################################\n");
+        retval = 1;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     free(img);
     free(xstart);
     free(xend);
     free(img_fwd);
     free(expected_fwd_vals);
 
+    free(bimg);
+    free(ones);
+
     return retval;
 }
-
