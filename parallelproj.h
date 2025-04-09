@@ -11,7 +11,7 @@ void joseph3d_fwd(const float *xstart,
                   const float *img_origin, 
                   const float *voxsize, 
                   float *p,
-                  long long nlors, 
+                  size_t nlors, 
                   const int *img_dim,
                   int device_id = 0,
                   int threadsperblock = 64);
