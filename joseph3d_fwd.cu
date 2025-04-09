@@ -439,7 +439,7 @@ void joseph3d_fwd(const float *xstart,
 
     if (err == cudaSuccess && (xstart_attr.type == cudaMemoryTypeManaged)){
         is_cuda_managed_ptr = true;
-        DEBUG_PRINT("Array is : %d\n", xstart_attr.device);
+        DEBUG_PRINT("Managed array is on device : %d\n", xstart_attr.device);
     }
     // else throw error
     else{
