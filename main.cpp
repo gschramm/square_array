@@ -1,57 +1,28 @@
 #include "parallelproj.h"
 #include <iostream>
-#include <cuda_runtime.h>
 #include <chrono>
 #include <cmath>
 
-void print_array(const char* label, float* array, size_t size) {
-    std::cout << label << ": ";
-    // print max 10 elements
-    size_t print_size = (size > 10) ? 10 : size;
-    for (size_t i = 0; i < print_size; ++i)
-        std::cout << array[i] << " ";
-    // print ellipses if size > 10 and the last element
-    if (size > 10)
-        std::cout << "... " << array[size - 1];
-    std::cout << "\n";
-}
-
 int main() {
     const size_t repetitions = 5;
-    long long nlors = 10;
-
-    // get the number of cuda devices - because we want to run on the last device
-    int device_count;
-    cudaGetDeviceCount(&device_count);
+    size_t nlors = 10;
 
     ////////////////////////////////////////////////////////
-    // CUDA memory managed use case
+    // OpenMP managed memory use case
     ////////////////////////////////////////////////////////
 
-    std::cout << "CUDA managed memory use case\n";
+    std::cout << "OpenMP use case\n";
 
-    cudaSetDevice(device_count - 1);
+    int img_dim[3] = {2, 3, 4};
 
-    int* img_dim;
-    cudaMallocManaged(&img_dim, 3 * sizeof(int));
-    img_dim[0] = 2;
-    img_dim[1] = 3;
-    img_dim[2] = 4;
+    float voxsize[3] = {4, 3, 2};
 
-    float* voxsize;
-    cudaMallocManaged(&voxsize, 3 * sizeof(float));
-    voxsize[0] = 4;
-    voxsize[1] = 3;
-    voxsize[2] = 2;
-
-    float* img_origin;
-    cudaMallocManaged(&img_origin, 3 * sizeof(float));
+    float img_origin[3];
     for (int i = 0; i < 3; ++i) {
         img_origin[i] = (-(float)img_dim[i] / 2 + 0.5) * voxsize[i];
     }
 
-    float* img;
-    cudaMallocManaged(&img, (img_dim[0] * img_dim[1] * img_dim[2]) * sizeof(float));
+    float* img = new float[img_dim[0] * img_dim[1] * img_dim[2]];
 
     // fill the test image
     for (int i0 = 0; i0 < img_dim[0]; i0++)
@@ -68,6 +39,10 @@ int main() {
         printf("\n");
     }
 
+    float id0 = static_cast<float>(img_dim[0]);
+    float id1 = static_cast<float>(img_dim[1]);
+    float id2 = static_cast<float>(img_dim[2]);
+
     float vstart[] = {
         0, -1, 0,           // 0
         0, -1, 0,           // 1
@@ -75,23 +50,23 @@ int main() {
         0, -1, 0.5,         // 3
         0, 0, -1,           // 4
         -1, 0, 0,           // 5
-        img_dim[0] - 1, -1, 0,      // 6 - (shifted 1)
-        img_dim[0] - 1, -1, img_dim[2] - 1, // 7 - (shifted 6)
-        img_dim[0] - 1, 0, -1,      // 8 - (shifted 4)
-        img_dim[0] - 1, img_dim[1] - 1, -1, // 9 - (shifted 8)
+        id0 - 1, -1, 0,      // 6 - (shifted 1)
+        id0 - 1, -1, id2 - 1, // 7 - (shifted 6)
+        id0 - 1, 0, -1,      // 8 - (shifted 4)
+        id0 - 1, id1 - 1, -1, // 9 - (shifted 8)
     };
 
     float vend[] = {
-        0, img_dim[1], 0,           // 0
-        0, img_dim[1], 0,           // 1
-        0, img_dim[1], 1,           // 2
-        0, img_dim[1], 0.5,         // 3
-        0, 0, img_dim[2],           // 4
-        img_dim[0], 0, 0,           // 5
-        img_dim[0] - 1, img_dim[1], 0,      // 6 - (shifted 1)
-        img_dim[0] - 1, img_dim[1], img_dim[2] - 1, // 7 - (shifted 6)
-        img_dim[0] - 1, 0, img_dim[2],      // 8 - (shifted 4)
-        img_dim[0] - 1, img_dim[1] - 1, img_dim[2], // 9 - (shifted 8)
+        0, id1, 0,           // 0
+        0, id1, 0,           // 1
+        0, id1, 1,           // 2
+        0, id1, 0.5,         // 3
+        0, 0, id2,           // 4
+        id0, 0, 0,           // 5
+        id0 - 1, id1, 0,      // 6 - (shifted 1)
+        id0 - 1, id1, id2 - 1, // 7 - (shifted 6)
+        id0 - 1, 0, id2,      // 8 - (shifted 4)
+        id0 - 1, id1 - 1, id2, // 9 - (shifted 8)
     };
 
     for (int ir = 0; ir < nlors; ir++)
@@ -103,10 +78,8 @@ int main() {
 
     // calculate the start and end coordinates in world coordinates
     
-    float *xstart;
-    cudaMallocManaged(&xstart, (3*nlors) * sizeof(float));
-    float *xend;
-    cudaMallocManaged(&xend, (3*nlors) * sizeof(float));
+    float *xstart = new float[3 * nlors];
+    float *xend = new float[3 * nlors];
 
     for (int ir = 0; ir < nlors; ir++)
 
@@ -118,18 +91,14 @@ int main() {
         }
     }
 
-
-    float *img_fwd;
-    cudaMallocManaged(&img_fwd, nlors * sizeof(float));
-
+    float *img_fwd = new float[nlors];
     joseph3d_fwd(xstart, xend, img, img_origin, voxsize, img_fwd, nlors, img_dim, 0, 64);
 
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+
     // calculate the expected values
-
-
-    /////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////
 
     int retval = 0;
     float eps = 1e-7;
@@ -214,14 +183,10 @@ int main() {
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////
 
-    cudaFree(img_dim);
-    cudaFree(voxsize);
-    cudaFree(img_origin);
-    cudaFree(img);
-    cudaFree(xstart);
-    cudaFree(xend);
-    cudaFree(img_fwd);
-
+    free(img);
+    free(xstart);
+    free(xend);
+    free(img_fwd);
     free(expected_fwd_vals);
 
     return 0;
