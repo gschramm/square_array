@@ -189,6 +189,6 @@ int main() {
     free(img_fwd);
     free(expected_fwd_vals);
 
-    return 0;
+    return retval;
 }
 

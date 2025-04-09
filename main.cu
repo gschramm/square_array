@@ -216,6 +216,6 @@ int main() {
 
     free(expected_fwd_vals);
 
-    return 0;
+    return retval;
 }
 
