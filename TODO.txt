@@ -1,0 +1,5 @@
+- managed cases: cudaprefetchasync to device, read / write hints
+- host pointer cases
+- device array cases
+
+- test all cases in main.cu
