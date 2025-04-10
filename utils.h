@@ -3,7 +3,7 @@
 
 WORKER_QUALIFIER inline void atomic_sum(float *target, float value)
 {
-#ifdef __CUDA_ARCH__
+#ifdef __CUDACC__
   atomicAdd(target, value);
 #else
 #pragma omp atomic

@@ -15,7 +15,7 @@ __global__ void joseph3d_fwd_kernel(const float *xstart,
                                     const int *img_dim)
 {
     size_t i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n)
+    if (i < nlors)
     {
         joseph3d_fwd_worker(i, xstart, xend, img, img_origin, voxsize, p, img_dim);
     }

@@ -3,7 +3,7 @@
 #include "utils.h"
 
 // we need to import math.h for the floor, ceil, sqrtf if not compiling for CUDA
-#ifndef __CUDA_ARCH__
+#ifndef __CUDACC__
 #include <math.h>
 #endif
 

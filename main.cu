@@ -6,7 +6,6 @@
 
 int main()
 {
-    const size_t repetitions = 5;
     size_t nlors = 10;
 
     // get the number of cuda devices - because we want to run on the last device
