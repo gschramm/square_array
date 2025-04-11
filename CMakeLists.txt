@@ -7,6 +7,11 @@ include(CMakePackageConfigHelpers)
 
 check_language(CUDA)
 
+# Enable automatic symbol export on Windows for shared libraries
+if(WIN32 AND BUILD_SHARED_LIBS)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+endif()
+
 ################################################################################
 ### DERIVE VERSION FROM GIT ####################################################
 ################################################################################
