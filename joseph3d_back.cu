@@ -37,6 +37,12 @@ void joseph3d_back(const float *xstart,
                    int threadsperblock)
 {
 
+    // Set the CUDA device
+    if (device_id >= 0)
+    {
+        cudaSetDevice(device_id);
+    }
+
     const float *d_xstart = nullptr;
     const float *d_xend = nullptr;
     float *d_img = nullptr;
