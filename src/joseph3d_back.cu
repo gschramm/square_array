@@ -1,6 +1,7 @@
 #include "parallelproj.h"
 #include "joseph3d_back_worker.h"
 #include "debug.h"
+#include "cuda_utils.h"
 #include <cuda_runtime.h>
 #include <iostream>
 #include <stdexcept>
@@ -36,65 +37,65 @@ void joseph3d_back(const float *xstart,
                    int device_id,
                    int threadsperblock)
 {
-
     // Set the CUDA device
     if (device_id >= 0)
     {
         cudaSetDevice(device_id);
     }
 
-    const float *d_xstart = nullptr;
-    const float *d_xend = nullptr;
+    /////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////
+    // copy arrays to device if needed
+    /////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////
+
+    // Handle xstart (read mostly)
+    float *d_xstart = nullptr;
+    bool free_xstart = false;
+    handle_cuda_input_array(xstart, &d_xstart, sizeof(float) * nlors * 3, free_xstart, device_id, cudaMemAdviseSetReadMostly);
+
+    // Handle xend (read mostly)
+    float *d_xend = nullptr;
+    bool free_xend = false;
+    handle_cuda_input_array(xend, &d_xend, sizeof(float) * nlors * 3, free_xend, device_id, cudaMemAdviseSetReadMostly);
+
+    // Handle img (write access)
     float *d_img = nullptr;
-    const float *d_img_origin = nullptr;
-    const float *d_voxsize = nullptr;
-    const float *d_p = nullptr;
-    const int *d_img_dim = nullptr;
+    bool free_img = false;
+    handle_cuda_input_array(img, &d_img, sizeof(float) * img_dim[0] * img_dim[1] * img_dim[2], free_img, device_id, cudaMemAdviseSetAccessedBy);
 
-    // get pointer attributes of all input and output arrays
-    cudaPointerAttributes xstart_attr;
-    cudaError_t err = cudaPointerGetAttributes(&xstart_attr, xstart);
-    /////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////
-    // TODO get attributes of all other arrays
-    /////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////
+    // Handle img_origin (read mostly)
+    float *d_img_origin = nullptr;
+    bool free_img_origin = false;
+    handle_cuda_input_array(img_origin, &d_img_origin, sizeof(float) * 3, free_img_origin, device_id, cudaMemAdviseSetReadMostly);
 
-    bool needs_copy_back = false;
-    bool is_cuda_managed_ptr = false;
+    // Handle voxsize (read mostly)
+    float *d_voxsize = nullptr;
+    bool free_voxsize = false;
+    handle_cuda_input_array(voxsize, &d_voxsize, sizeof(float) * 3, free_voxsize, device_id, cudaMemAdviseSetReadMostly);
 
-    if (err == cudaSuccess && (xstart_attr.type == cudaMemoryTypeManaged))
-    {
-        is_cuda_managed_ptr = true;
-        DEBUG_PRINT("Managed array is on device : %d\n", xstart_attr.device);
-    }
-    // else throw error
-    else
-    {
-        needs_copy_back = true;
-        throw std::runtime_error("Unsupported pointer type");
-    }
+    // Handle p (read mostly)
+    float *d_p = nullptr;
+    bool free_p = false;
+    handle_cuda_input_array(p, &d_p, sizeof(float) * nlors, free_p, device_id, cudaMemAdviseSetReadMostly);
 
-    if (is_cuda_managed_ptr)
-    {
-        // all arrays are cuda malloc managed, so no need to copy to the device
-        d_xstart = xstart;
-        d_xend = xend;
-        d_img = img;
-        d_img_origin = img_origin;
-        d_voxsize = voxsize;
-        d_p = p;
-        d_img_dim = img_dim;
-    }
-    else
-    {
-        DEBUG_PRINT("COPYING HOST TO DEVICE");
-    }
+    // Handle img_dim (read mostly)
+    int *d_img_dim = nullptr;
+    bool free_img_dim = false;
+    handle_cuda_input_array(img_dim, &d_img_dim, sizeof(int) * 3, free_img_dim, device_id, cudaMemAdviseSetReadMostly);
 
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+    // launch the kernel
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+
+#ifdef DEBUG
     // get and print the current cuda device ID
     int current_device_id;
     cudaGetDevice(&current_device_id);
     DEBUG_PRINT("Using CUDA device: %d\n", current_device_id);
+#endif
 
     int num_blocks = (int)((nlors + threadsperblock - 1) / threadsperblock);
     joseph3d_back_kernel<<<num_blocks, threadsperblock>>>(d_xstart, d_xend, d_img,
@@ -102,8 +103,25 @@ void joseph3d_back(const float *xstart,
                                                           d_p, nlors, d_img_dim);
     cudaDeviceSynchronize();
 
-    // if (needs_copy_back) {
-    //     cudaMemcpy(array, device_array, size * sizeof(float), cudaMemcpyDeviceToHost);
-    //     cudaFree(device_array);
-    // }
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+    // free device memory if needed
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+
+    // Free device memory if it was allocated
+    if (free_xstart)
+        cudaFree(d_xstart);
+    if (free_xend)
+        cudaFree(d_xend);
+    if (free_img)
+        cudaFree(d_img);
+    if (free_img_origin)
+        cudaFree(d_img_origin);
+    if (free_voxsize)
+        cudaFree(d_voxsize);
+    if (free_p)
+        cudaFree(d_p);
+    if (free_img_dim)
+        cudaFree(d_img_dim);
 }
