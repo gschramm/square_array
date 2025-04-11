@@ -33,20 +33,37 @@ if(DEBUG)
     add_compile_definitions(DEBUG)
 endif()
 
+
+
 if(CMAKE_CUDA_COMPILER)
+    set(LIB_SOURCES
+        src/joseph3d_fwd.cu
+        src/joseph3d_back.cu
+        src/cuda_utils.cu
+    )
+
     enable_language(CUDA)
     find_package(CUDAToolkit REQUIRED)
     
-    add_library(parallelproj SHARED joseph3d_fwd.cu joseph3d_back.cu)
+    add_library(parallelproj SHARED ${LIB_SOURCES})
+    target_include_directories(parallelproj PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(parallelproj PRIVATE CUDA::cudart)
 
-    add_executable(main main.cu)
-    target_include_directories(main PRIVATE ${CUDAToolkit_INCLUDE_DIRS})
+    add_executable(main src/main.cu)
+    target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include ${CUDAToolkit_INCLUDE_DIRS})
     target_link_libraries(main PRIVATE parallelproj CUDA::cudart)
 else()
+    set(LIB_SOURCES
+        src/joseph3d_fwd.cpp
+        src/joseph3d_back.cpp
+    )
+
     find_package(OpenMP REQUIRED)
-    add_library(parallelproj SHARED joseph3d_fwd.cpp joseph3d_back.cpp)
+    add_library(parallelproj SHARED ${LIB_SOURCES})
+    target_include_directories(parallelproj PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(parallelproj PRIVATE OpenMP::OpenMP_CXX)
-    add_executable(main main.cpp)
+
+    add_executable(main src/main.cpp)
+    target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(main PRIVATE parallelproj)
 endif()
