@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 3.18)
 project(PARALLELPROJ LANGUAGES C CXX)
 
 include(CheckLanguage)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 check_language(CUDA)
 
-# Derive version from Git or folder name
+################################################################################
+### DERIVE VERSION FROM GIT ####################################################
+################################################################################
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
     execute_process(
         COMMAND git describe --tags --long --dirty
@@ -33,6 +39,9 @@ if(DEBUG)
     add_compile_definitions(DEBUG)
 endif()
 
+################################################################################
+### DEFINE TARGETS #############################################################
+################################################################################
 
 
 if(CMAKE_CUDA_COMPILER)
@@ -44,10 +53,12 @@ if(CMAKE_CUDA_COMPILER)
 
     enable_language(CUDA)
     find_package(CUDAToolkit REQUIRED)
+    set(PARALLELPROJ_CUDA 1)
     
     add_library(parallelproj SHARED ${LIB_SOURCES})
     target_include_directories(parallelproj PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(parallelproj PRIVATE CUDA::cudart)
+    target_compile_definitions(parallelproj PUBLIC PARALLELPROJ_CUDA=1) 
 
     set(TEST_SOURCES
         tests/test_nontof_fwd_back.cu
@@ -59,14 +70,65 @@ else()
     )
 
     find_package(OpenMP REQUIRED)
+    set(PARALLELPROJ_CUDA 0)
+
     add_library(parallelproj SHARED ${LIB_SOURCES})
     target_include_directories(parallelproj PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(parallelproj PRIVATE OpenMP::OpenMP_CXX)
+    target_compile_definitions(parallelproj PUBLIC PARALLELPROJ_CUDA=0)
 
     set(TEST_SOURCES
         tests/test_nontof_fwd_back.cpp
     )
 endif()
+
+################################################################################
+### INSTALL AND CONFIGS ########################################################
+################################################################################
+
+# Install the library and headers
+install(TARGETS parallelproj
+    EXPORT parallelprojTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# Export the build tree for other projects
+export(EXPORT parallelprojTargets
+    FILE ${CMAKE_BINARY_DIR}/parallelprojTargets.cmake
+    NAMESPACE parallelproj::
+)
+
+# Install the export configuration
+install(EXPORT parallelprojTargets
+    FILE parallelprojTargets.cmake
+    NAMESPACE parallelproj::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/parallelproj
+)
+
+# Create and install a package configuration file
+write_basic_package_version_file(
+    ${CMAKE_BINARY_DIR}/parallelprojConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+configure_file(${CMAKE_SOURCE_DIR}/cmake/parallelprojConfig.cmake.in
+    ${CMAKE_BINARY_DIR}/parallelprojConfig.cmake
+    @ONLY
+)
+
+install(FILES
+    ${CMAKE_BINARY_DIR}/parallelprojConfig.cmake
+    ${CMAKE_BINARY_DIR}/parallelprojConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/parallelproj
+)
 
 
 ################################################################################

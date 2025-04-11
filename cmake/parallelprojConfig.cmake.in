@@ -1,0 +1,9 @@
+include("${CMAKE_CURRENT_LIST_DIR}/parallelprojTargets.cmake")
+
+# Include the version file for compatibility checks
+include("${CMAKE_CURRENT_LIST_DIR}/parallelprojConfigVersion.cmake")
+
+set(PARALLELPROJ_CUDA @PARALLELPROJ_CUDA@)
+set(PARALLELPROJ_INCLUDE_DIRS "${CMAKE_INSTALL_INCLUDEDIR}")
+set(PARALLELPROJ_LIBRARY_DIRS "${CMAKE_INSTALL_LIBDIR}")
+set(PARALLELPROJ_VERSION "@PROJECT_VERSION@")
