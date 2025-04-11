@@ -49,9 +49,9 @@ if(CMAKE_CUDA_COMPILER)
     target_include_directories(parallelproj PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(parallelproj PRIVATE CUDA::cudart)
 
-    add_executable(main src/main.cu)
-    target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include ${CUDAToolkit_INCLUDE_DIRS})
-    target_link_libraries(main PRIVATE parallelproj CUDA::cudart)
+    set(TEST_SOURCES
+        tests/test_nontof_fwd_back.cu
+    )
 else()
     set(LIB_SOURCES
         src/joseph3d_fwd.cpp
@@ -63,7 +63,26 @@ else()
     target_include_directories(parallelproj PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_link_libraries(parallelproj PRIVATE OpenMP::OpenMP_CXX)
 
-    add_executable(main src/main.cpp)
-    target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include)
-    target_link_libraries(main PRIVATE parallelproj)
+    set(TEST_SOURCES
+        tests/test_nontof_fwd_back.cpp
+    )
 endif()
+
+
+################################################################################
+### BUILD TESTS ################################################################
+################################################################################
+
+enable_testing()
+
+foreach(TEST_SOURCE ${TEST_SOURCES})
+    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
+    add_executable(${TEST_NAME} ${TEST_SOURCE})
+    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    if(CMAKE_CUDA_COMPILER)
+        target_link_libraries(${TEST_NAME} PRIVATE parallelproj CUDA::cudart)
+    else()
+        target_link_libraries(${TEST_NAME} PRIVATE parallelproj OpenMP::OpenMP_CXX)
+    endif()
+    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+endforeach()
