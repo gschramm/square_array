@@ -3,12 +3,10 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <vector>
 
 int main()
 {
-    const size_t repetitions = 5;
-    size_t nlors = 10;
-
     ////////////////////////////////////////////////////////
     // OpenMP managed memory use case
     ////////////////////////////////////////////////////////
@@ -16,7 +14,6 @@ int main()
     std::cout << "OpenMP use case\n";
 
     int img_dim[3] = {2, 3, 4};
-
     float voxsize[3] = {4, 3, 2};
 
     float img_origin[3];
@@ -25,148 +22,53 @@ int main()
         img_origin[i] = (-(float)img_dim[i] / 2 + 0.5) * voxsize[i];
     }
 
-    float *img = new float[img_dim[0] * img_dim[1] * img_dim[2]];
+    // Read the image from file
+    std::vector<float> img_from_file = readArrayFromFile<float>("img.txt");
 
-    // fill the test image
-    for (int i0 = 0; i0 < img_dim[0]; i0++)
-    {
-        for (int i1 = 0; i1 < img_dim[1]; i1++)
-        {
-            for (int i2 = 0; i2 < img_dim[2]; i2++)
-            {
-                img[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2] = float(img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2 + 1);
-                printf("%.1f ", img[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2]);
-            }
-            printf("\n");
-        }
-        printf("\n");
-    }
+    // Read the ray start coordinates from file
+    std::vector<float> vstart_from_file = readArrayFromFile<float>("vstart.txt");
 
-    float id0 = static_cast<float>(img_dim[0]);
-    float id1 = static_cast<float>(img_dim[1]);
-    float id2 = static_cast<float>(img_dim[2]);
+    // Read the ray end coordinates from file
+    std::vector<float> vend_from_file = readArrayFromFile<float>("vend.txt");
 
-    float vstart[] = {
-        0, -1, 0,             // 0
-        0, -1, 0,             // 1
-        0, -1, 1,             // 2
-        0, -1, 0.5,           // 3
-        0, 0, -1,             // 4
-        -1, 0, 0,             // 5
-        id0 - 1, -1, 0,       // 6 - (shifted 1)
-        id0 - 1, -1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, -1,       // 8 - (shifted 4)
-        id0 - 1, id1 - 1, -1, // 9 - (shifted 8)
-    };
+    size_t nlors = vstart_from_file.size() / 3;
 
-    float vend[] = {
-        0, id1, 0,             // 0
-        0, id1, 0,             // 1
-        0, id1, 1,             // 2
-        0, id1, 0.5,           // 3
-        0, 0, id2,             // 4
-        id0, 0, 0,             // 5
-        id0 - 1, id1, 0,       // 6 - (shifted 1)
-        id0 - 1, id1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, id2,       // 8 - (shifted 4)
-        id0 - 1, id1 - 1, id2, // 9 - (shifted 8)
-    };
+    // Calculate the start and end coordinates in world coordinates
+    std::vector<float> xstart(3 * nlors);
+    std::vector<float> xend(3 * nlors);
 
     for (int ir = 0; ir < nlors; ir++)
     {
-        printf("test ray %d\n", ir);
-        printf("start voxel num .: %.1f %.1f %.1f\n", vstart[ir * 3 + 0], vstart[ir * 3 + 1], vstart[ir * 3 + 2]);
-        printf("end   voxel num .: %.1f %.1f %.1f\n", vend[ir * 3 + 0], vend[ir * 3 + 1], vend[ir * 3 + 2]);
+        xstart[ir * 3 + 0] = img_origin[0] + vstart_from_file[ir * 3 + 0] * voxsize[0];
+        xstart[ir * 3 + 1] = img_origin[1] + vstart_from_file[ir * 3 + 1] * voxsize[1];
+        xstart[ir * 3 + 2] = img_origin[2] + vstart_from_file[ir * 3 + 2] * voxsize[2];
+
+        xend[ir * 3 + 0] = img_origin[0] + vend_from_file[ir * 3 + 0] * voxsize[0];
+        xend[ir * 3 + 1] = img_origin[1] + vend_from_file[ir * 3 + 1] * voxsize[1];
+        xend[ir * 3 + 2] = img_origin[2] + vend_from_file[ir * 3 + 2] * voxsize[2];
     }
 
-    // calculate the start and end coordinates in world coordinates
+    // Allocate memory for forward projection results
+    std::vector<float> img_fwd(nlors);
 
-    float *xstart = new float[3 * nlors];
-    float *xend = new float[3 * nlors];
-
-    for (int ir = 0; ir < nlors; ir++)
-
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            xstart[ir * 3 + j] = img_origin[j] + vstart[ir * 3 + j] * voxsize[j];
-            xend[ir * 3 + j] = img_origin[j] + vend[ir * 3 + j] * voxsize[j];
-        }
-    }
-
-    float *img_fwd = new float[nlors];
-    joseph3d_fwd(xstart, xend, img, img_origin, voxsize, img_fwd, nlors, img_dim, 0, 64);
+    // Perform forward projection
+    joseph3d_fwd(
+        xstart.data(), xend.data(), img_from_file.data(),
+        img_origin, voxsize, img_fwd.data(),
+        nlors, img_dim, 0, 64);
 
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
 
-    // calculate the expected values
+    // Read the expected forward values from file
+    std::vector<float> expected_fwd_vals = readArrayFromFile<float>("expected_fwd_vals.txt");
 
-    int retval = 0;
-    float eps = 1e-7;
-
-    float *expected_fwd_vals = new float[nlors];
-    // initialize expected_fwd_vals with 0s
-    for (int ir = 0; ir < nlors; ir++)
-    {
-        expected_fwd_vals[ir] = 0;
-    }
-
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[0] += img[0 * img_dim[1] * img_dim[2] + i1 * img_dim[2] + 0] * voxsize[1];
-    }
-
-    expected_fwd_vals[1] = expected_fwd_vals[0];
-
-    // calculate the expected value of ray2 from [0,-1,1] to [0,last+1,1]
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[2] += img[0 * img_dim[1] * img_dim[2] + i1 * img_dim[2] + 1] * voxsize[1];
-    }
-
-    // calculate the expected value of ray3 from [0,-1,0.5] to [0,last+1,0.5]
-    expected_fwd_vals[3] = 0.5 * (expected_fwd_vals[0] + expected_fwd_vals[2]);
-
-    // calculate the expected value of ray4 from [0,0,-1] to [0,0,last+1]
-    for (int i2 = 0; i2 < img_dim[2]; i2++)
-    {
-        expected_fwd_vals[4] += img[0 * img_dim[1] * img_dim[2] + 0 * img_dim[2] + i2] * voxsize[2];
-    }
-
-    // calculate the expected value of ray5 from [-1,0,0] to [last+1,0,0]
-    for (int i0 = 0; i0 < img_dim[0]; i0++)
-    {
-        expected_fwd_vals[5] += img[i0 * img_dim[1] * img_dim[2] + 0 * img_dim[2] + 0] * voxsize[0];
-    }
-
-    // calculate the expected value of rays6 from [img_dim[0]-1,-1,0] to [img_dim[0]-1,last+1,0]
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[6] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + i1 * img_dim[2] + 0] * voxsize[1];
-    }
-
-    // calculate the expected value of rays7 from [img_dim[0]-1,-1,img_dim[2]-1] to [img_dim[0]-1,last+1,img_dim[2]-1]
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[7] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + i1 * img_dim[2] + (img_dim[2] - 1)] * voxsize[1];
-    }
-
-    // calculate the expected value of ray4 from [img_dim[0]-1,0,-1] to [img_dim[0]-1,0,last+1]
-    for (int i2 = 0; i2 < img_dim[2]; i2++)
-    {
-        expected_fwd_vals[8] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + 0 * img_dim[2] + i2] * voxsize[2];
-    }
-
-    // calculate the expected value of ray4 from [img_dim[0]-1,0,-1] to [img_dim[0]-1,0,last+1]
-    for (int i2 = 0; i2 < img_dim[2]; i2++)
-    {
-        expected_fwd_vals[9] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + (img_dim[1] - 1) * img_dim[2] + i2] * voxsize[2];
-    }
-
-    // check if we got the expected results
+    // Check if we got the expected results
     float fwd_diff = 0;
+    float eps = 1e-7;
+    int retval = 0;
+
     printf("\nforward projection test\n");
     for (int ir = 0; ir < nlors; ir++)
     {
@@ -186,21 +88,14 @@ int main()
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////
 
-    // test the back projection
+    // Test the back projection
+    std::vector<float> bimg(img_dim[0] * img_dim[1] * img_dim[2], 0.0f);
+    std::vector<float> ones(nlors, 1.0f);
 
-    float *bimg = new float[img_dim[0] * img_dim[1] * img_dim[2]];
-    for (size_t i = 0; i < (img_dim[0] * img_dim[1] * img_dim[2]); i++)
-    {
-        bimg[i] = 0;
-    }
-
-    float *ones = new float[nlors];
-    for (size_t i = 0; i < nlors; i++)
-    {
-        ones[i] = 1;
-    }
-
-    joseph3d_back(xstart, xend, bimg, img_origin, voxsize, ones, nlors, img_dim);
+    joseph3d_back(
+        xstart.data(), xend.data(), bimg.data(),
+        img_origin, voxsize, ones.data(),
+        nlors, img_dim);
 
     printf("\nback projection of ones along all rays:\n");
     for (size_t i0 = 0; i0 < img_dim[0]; i0++)
@@ -225,7 +120,7 @@ int main()
 
     for (size_t i = 0; i < (img_dim[0] * img_dim[1] * img_dim[2]); i++)
     {
-        inner_product1 += (img[i] * bimg[i]);
+        inner_product1 += (img_from_file[i] * bimg[i]);
     }
 
     for (size_t ir = 0; ir < nlors; ir++)
@@ -243,18 +138,6 @@ int main()
         printf("\n#########################################################################\n");
         retval = 1;
     }
-
-    ////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////
-    free(img);
-    free(xstart);
-    free(xend);
-    free(img_fwd);
-    free(expected_fwd_vals);
-
-    free(bimg);
-    free(ones);
 
     return retval;
 }

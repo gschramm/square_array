@@ -8,8 +8,6 @@
 
 int main()
 {
-    size_t nlors = 10;
-
     // get the number of cuda devices - because we want to run on the last device
     int device_count;
     cudaGetDeviceCount(&device_count);
@@ -50,6 +48,8 @@ int main()
     // read the ray start coordinates in voxel coordinates
     // reast vstart from vstart.txt and convert into a cuda managed array
     std::vector<float> vstart_from_file = readArrayFromFile<float>("vstart.txt");
+    size_t nlors = vstart_from_file.size() / 3;
+
     float *vstart;
     cudaMallocManaged(&vstart, (3 * nlors) * sizeof(float));
     memcpy(vstart, vstart_from_file.data(), vstart_from_file.size() * sizeof(float));
