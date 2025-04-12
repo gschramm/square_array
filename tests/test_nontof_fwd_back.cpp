@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <vector>
+#include <numeric>
 
 int main()
 {
@@ -13,25 +14,25 @@ int main()
 
     std::cout << "OpenMP use case\n";
 
-    int img_dim[3] = {2, 3, 4};
-    float voxsize[3] = {4, 3, 2};
+    std::vector<int> img_dim = {2, 3, 4};
+    std::vector<float> voxsize = {4.0f, 3.0f, 2.0f};
 
-    float img_origin[3];
+    std::vector<float> img_origin(3);
     for (int i = 0; i < 3; ++i)
     {
-        img_origin[i] = (-(float)img_dim[i] / 2 + 0.5) * voxsize[i];
+        img_origin[i] = (-(float)img_dim[i] / 2 + 0.5f) * voxsize[i];
     }
 
     // Read the image from file
-    std::vector<float> img_from_file = readArrayFromFile<float>("img.txt");
+    std::vector<float> img = readArrayFromFile<float>("img.txt");
 
     // Read the ray start coordinates from file
-    std::vector<float> vstart_from_file = readArrayFromFile<float>("vstart.txt");
+    std::vector<float> vstart = readArrayFromFile<float>("vstart.txt");
 
     // Read the ray end coordinates from file
-    std::vector<float> vend_from_file = readArrayFromFile<float>("vend.txt");
+    std::vector<float> vend = readArrayFromFile<float>("vend.txt");
 
-    size_t nlors = vstart_from_file.size() / 3;
+    size_t nlors = vstart.size() / 3;
 
     // Calculate the start and end coordinates in world coordinates
     std::vector<float> xstart(3 * nlors);
@@ -39,13 +40,13 @@ int main()
 
     for (int ir = 0; ir < nlors; ir++)
     {
-        xstart[ir * 3 + 0] = img_origin[0] + vstart_from_file[ir * 3 + 0] * voxsize[0];
-        xstart[ir * 3 + 1] = img_origin[1] + vstart_from_file[ir * 3 + 1] * voxsize[1];
-        xstart[ir * 3 + 2] = img_origin[2] + vstart_from_file[ir * 3 + 2] * voxsize[2];
+        xstart[ir * 3 + 0] = img_origin[0] + vstart[ir * 3 + 0] * voxsize[0];
+        xstart[ir * 3 + 1] = img_origin[1] + vstart[ir * 3 + 1] * voxsize[1];
+        xstart[ir * 3 + 2] = img_origin[2] + vstart[ir * 3 + 2] * voxsize[2];
 
-        xend[ir * 3 + 0] = img_origin[0] + vend_from_file[ir * 3 + 0] * voxsize[0];
-        xend[ir * 3 + 1] = img_origin[1] + vend_from_file[ir * 3 + 1] * voxsize[1];
-        xend[ir * 3 + 2] = img_origin[2] + vend_from_file[ir * 3 + 2] * voxsize[2];
+        xend[ir * 3 + 0] = img_origin[0] + vend[ir * 3 + 0] * voxsize[0];
+        xend[ir * 3 + 1] = img_origin[1] + vend[ir * 3 + 1] * voxsize[1];
+        xend[ir * 3 + 2] = img_origin[2] + vend[ir * 3 + 2] * voxsize[2];
     }
 
     // Allocate memory for forward projection results
@@ -53,9 +54,9 @@ int main()
 
     // Perform forward projection
     joseph3d_fwd(
-        xstart.data(), xend.data(), img_from_file.data(),
-        img_origin, voxsize, img_fwd.data(),
-        nlors, img_dim, 0, 64);
+        xstart.data(), xend.data(), img.data(),
+        img_origin.data(), voxsize.data(), img_fwd.data(),
+        nlors, img_dim.data(), 0, 64);
 
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
@@ -94,8 +95,8 @@ int main()
 
     joseph3d_back(
         xstart.data(), xend.data(), bimg.data(),
-        img_origin, voxsize, ones.data(),
-        nlors, img_dim);
+        img_origin.data(), voxsize.data(), ones.data(),
+        nlors, img_dim.data());
 
     printf("\nback projection of ones along all rays:\n");
     for (size_t i0 = 0; i0 < img_dim[0]; i0++)
@@ -115,18 +116,8 @@ int main()
     // of the forward projector. This is more practical than checking a lot of single voxels in the
     // back projected image.
 
-    float inner_product1 = 0;
-    float inner_product2 = 0;
-
-    for (size_t i = 0; i < (img_dim[0] * img_dim[1] * img_dim[2]); i++)
-    {
-        inner_product1 += (img_from_file[i] * bimg[i]);
-    }
-
-    for (size_t ir = 0; ir < nlors; ir++)
-    {
-        inner_product2 += (img_fwd[ir] * ones[ir]);
-    }
+    float inner_product1 = std::inner_product(img.begin(), img.end(), bimg.begin(), 0.0f);
+    float inner_product2 = std::inner_product(img_fwd.begin(), img_fwd.end(), ones.begin(), 0.0f);
 
     float ip_diff = fabs(inner_product1 - inner_product2);
 
