@@ -77,6 +77,51 @@ void test_host_arrays()
             return;
         }
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+
+    // Test the back projection using the defintion of the adjoint operator
+    std::vector<float> bimg(img_dim[0] * img_dim[1] * img_dim[2], 0.0f);
+    std::vector<float> ones(nlors, 1.0f);
+
+    joseph3d_back(
+        xstart.data(), xend.data(), bimg.data(),
+        img_origin.data(), voxsize.data(), ones.data(),
+        nlors, img_dim.data());
+
+    printf("\nback projection of ones along all rays:\n");
+    for (size_t i0 = 0; i0 < img_dim[0]; i0++)
+    {
+        for (size_t i1 = 0; i1 < img_dim[1]; i1++)
+        {
+            for (size_t i2 = 0; i2 < img_dim[2]; i2++)
+            {
+                printf("%.1f ", bimg[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+    // To test whether the back projection is correct, we test if the back projector is the adjoint
+    // of the forward projector. This is more practical than checking a lot of single voxels in the
+    // back projected image.
+
+    float inner_product1 = std::inner_product(img.begin(), img.end(), bimg.begin(), 0.0f);
+    float inner_product2 = std::inner_product(img_fwd.begin(), img_fwd.end(), ones.begin(), 0.0f);
+
+    float ip_diff = fabs(inner_product1 - inner_product2);
+
+    if (ip_diff > eps)
+    {
+        printf("\n#########################################################################");
+        printf("\nback projection test failed. back projection seems not to be the adjoint.");
+        printf("\n %.7e", ip_diff);
+        printf("\n#########################################################################\n");
+        std::cerr << "Back projection via adjointness test failed.\n";
+    }
 }
 
 void test_cuda_managed_arrays()
@@ -126,8 +171,6 @@ void test_cuda_managed_arrays()
     cudaMallocManaged(&img_fwd, nlors * sizeof(float));
     joseph3d_fwd(xstart, xend, img, img_origin, voxsize, img_fwd, nlors, img_dim, 0, 64);
 
-    cudaDeviceSynchronize();
-
     std::vector<float> expected_fwd_vals = readArrayFromFile<float>("expected_fwd_vals.txt");
     float fwd_diff = 0;
     float eps = 1e-7;
@@ -142,6 +185,56 @@ void test_cuda_managed_arrays()
         }
     }
 
+    // Test the back projection
+    float *bimg;
+    cudaMallocManaged(&bimg, img_dim[0] * img_dim[1] * img_dim[2] * sizeof(float));
+    std::fill(bimg, bimg + (img_dim[0] * img_dim[1] * img_dim[2]), 0.0f);
+
+    float *ones;
+    cudaMallocManaged(&ones, nlors * sizeof(float));
+    std::fill(ones, ones + nlors, 1.0f);
+
+    joseph3d_back(xstart, xend, bimg, img_origin, voxsize, ones, nlors, img_dim);
+
+    printf("\nCUDA-managed back projection of ones along all rays:\n");
+    for (size_t i0 = 0; i0 < img_dim[0]; i0++)
+    {
+        for (size_t i1 = 0; i1 < img_dim[1]; i1++)
+        {
+            for (size_t i2 = 0; i2 < img_dim[2]; i2++)
+            {
+                printf("%.1f ", bimg[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+    // Validate the back projection using adjointness
+    float inner_product1 = 0.0f;
+    float inner_product2 = 0.0f;
+
+    for (size_t i = 0; i < img_from_file.size(); i++)
+    {
+        inner_product1 += img[i] * bimg[i];
+    }
+
+    for (size_t ir = 0; ir < nlors; ir++)
+    {
+        inner_product2 += img_fwd[ir] * ones[ir];
+    }
+
+    float ip_diff = fabs(inner_product1 - inner_product2);
+
+    if (ip_diff > eps)
+    {
+        std::cerr << "CUDA-managed array back projection test failed: adjointness property violated.\n";
+    }
+    else
+    {
+        std::cout << "CUDA-managed array back projection test passed.\n";
+    }
+
     cudaFree(img_origin);
     cudaFree(img);
     cudaFree(vstart);
@@ -149,6 +242,8 @@ void test_cuda_managed_arrays()
     cudaFree(xstart);
     cudaFree(xend);
     cudaFree(img_fwd);
+    cudaFree(bimg);
+    cudaFree(ones);
 }
 
 void test_cuda_device_arrays()
@@ -216,10 +311,67 @@ void test_cuda_device_arrays()
         }
     }
 
+    // Test the back projection
+    float *bimg;
+    cudaMalloc(&bimg, img_dim[0] * img_dim[1] * img_dim[2] * sizeof(float));
+    cudaMemset(bimg, 0, img_dim[0] * img_dim[1] * img_dim[2] * sizeof(float));
+
+    float *ones;
+    cudaMalloc(&ones, nlors * sizeof(float));
+    cudaMemset(ones, 0, nlors * sizeof(float));
+    std::vector<float> ones_host(nlors, 1.0f);
+    cudaMemcpy(ones, ones_host.data(), nlors * sizeof(float), cudaMemcpyHostToDevice);
+
+    joseph3d_back(xstart, xend, bimg, img_origin, voxsize, ones, nlors, img_dim);
+
+    std::vector<float> bimg_host(img_dim[0] * img_dim[1] * img_dim[2]);
+    cudaMemcpy(bimg_host.data(), bimg, bimg_host.size() * sizeof(float), cudaMemcpyDeviceToHost);
+
+    printf("\nCUDA device back projection of ones along all rays:\n");
+    for (size_t i0 = 0; i0 < img_dim[0]; i0++)
+    {
+        for (size_t i1 = 0; i1 < img_dim[1]; i1++)
+        {
+            for (size_t i2 = 0; i2 < img_dim[2]; i2++)
+            {
+                printf("%.1f ", bimg_host[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+    // Validate the back projection using adjointness
+    float inner_product1 = 0.0f;
+    float inner_product2 = 0.0f;
+
+    for (size_t i = 0; i < img_from_file.size(); i++)
+    {
+        inner_product1 += img_from_file[i] * bimg_host[i];
+    }
+
+    for (size_t ir = 0; ir < nlors; ir++)
+    {
+        inner_product2 += img_fwd_host[ir] * ones_host[ir];
+    }
+
+    float ip_diff = fabs(inner_product1 - inner_product2);
+
+    if (ip_diff > eps)
+    {
+        std::cerr << "CUDA device array back projection test failed: adjointness property violated.\n";
+    }
+    else
+    {
+        std::cout << "CUDA device array back projection test passed.\n";
+    }
+
     cudaFree(img);
     cudaFree(vstart);
     cudaFree(vend);
     cudaFree(xstart);
     cudaFree(xend);
     cudaFree(img_fwd);
+    cudaFree(bimg);
+    cudaFree(ones);
 }
