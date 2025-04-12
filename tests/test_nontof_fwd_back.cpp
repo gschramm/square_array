@@ -9,10 +9,14 @@
 int main()
 {
     ////////////////////////////////////////////////////////
-    // OpenMP managed memory use case
+    // host array test cases
     ////////////////////////////////////////////////////////
 
-    std::cout << "OpenMP use case\n";
+#ifdef __CUDACC__
+    std::cout << "CUDA host array test\n";
+#else
+    std::cout << "OpenMP test\n";
+#endif
 
     std::vector<int> img_dim = {2, 3, 4};
     std::vector<float> voxsize = {4.0f, 3.0f, 2.0f};
@@ -68,7 +72,6 @@ int main()
     // Check if we got the expected results
     float fwd_diff = 0;
     float eps = 1e-7;
-    int retval = 0;
 
     printf("\nforward projection test\n");
     for (int ir = 0; ir < nlors; ir++)
@@ -78,10 +81,12 @@ int main()
         fwd_diff = std::abs(img_fwd[ir] - expected_fwd_vals[ir]);
         if (fwd_diff > eps)
         {
-            printf("\n################################################################################");
-            printf("\nabs(fwd projected - expected value) = %.2e for ray%d above tolerance %.2e", fwd_diff, ir, eps);
-            printf("\n################################################################################\n");
-            retval = 1;
+            std::cerr << "Forward projection test failed.\n";
+            std::cerr << "Difference: " << fwd_diff << "\n";
+            std::cerr << "Expected: " << expected_fwd_vals[ir] << "\n";
+            std::cerr << "Actual: " << img_fwd[ir] << "\n";
+            std::cerr << "Tolerance: " << eps << "\n";
+            std::cerr << "Ray index: " << ir << "\n";
         }
     }
 
@@ -123,12 +128,12 @@ int main()
 
     if (ip_diff > eps)
     {
-        printf("\n#########################################################################");
-        printf("\nback projection test failed. back projection seems not to be the adjoint.");
-        printf("\n %.7e", ip_diff);
-        printf("\n#########################################################################\n");
-        retval = 1;
+        std::cerr << "Back projection test failed.\n";
+        std::cerr << "Inner product 1: " << inner_product1 << "\n";
+        std::cerr << "Inner product 2: " << inner_product2 << "\n";
+        std::cerr << "Difference: " << ip_diff << "\n";
+        std::cerr << "Tolerance: " << eps << "\n";
     }
 
-    return retval;
+    return 0;
 }

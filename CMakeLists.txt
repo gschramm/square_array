@@ -66,7 +66,8 @@ if(CMAKE_CUDA_COMPILER)
     target_compile_definitions(parallelproj PUBLIC PARALLELPROJ_CUDA=1) 
 
     set(TEST_SOURCES
-        tests/test_nontof_fwd_back.cu
+        tests/test_nontof_fwd_back.cpp
+        tests/test_nontof_fwd_back_cuda.cu
     )
 else()
     set(LIB_SOURCES

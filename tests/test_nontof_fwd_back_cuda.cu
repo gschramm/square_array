@@ -7,17 +7,11 @@
 #include <numeric>
 #include <cuda_runtime.h>
 
-void test_host_arrays();
 void test_cuda_managed_arrays();
 void test_cuda_device_arrays();
 
 int main()
 {
-    std::cout << "Testing joseph3d_fwd and joseph3d_back with different memory modes:\n";
-
-    std::cout << "\n--- Testing with Host Arrays ---\n";
-    test_host_arrays();
-
     std::cout << "\n--- Testing with CUDA-Managed Arrays ---\n";
     test_cuda_managed_arrays();
 
@@ -25,103 +19,6 @@ int main()
     test_cuda_device_arrays();
 
     return 0;
-}
-
-void test_host_arrays()
-{
-    // Host array test (same as your current implementation)
-    std::vector<int> img_dim = {2, 3, 4};
-    std::vector<float> voxsize = {4.0f, 3.0f, 2.0f};
-
-    std::vector<float> img_origin(3);
-    for (int i = 0; i < 3; ++i)
-    {
-        img_origin[i] = (-(float)img_dim[i] / 2 + 0.5f) * voxsize[i];
-    }
-
-    std::vector<float> img = readArrayFromFile<float>("img.txt");
-    std::vector<float> vstart = readArrayFromFile<float>("vstart.txt");
-    std::vector<float> vend = readArrayFromFile<float>("vend.txt");
-    size_t nlors = vstart.size() / 3;
-
-    std::vector<float> xstart(3 * nlors);
-    std::vector<float> xend(3 * nlors);
-
-    for (int ir = 0; ir < nlors; ir++)
-    {
-        xstart[ir * 3 + 0] = img_origin[0] + vstart[ir * 3 + 0] * voxsize[0];
-        xstart[ir * 3 + 1] = img_origin[1] + vstart[ir * 3 + 1] * voxsize[1];
-        xstart[ir * 3 + 2] = img_origin[2] + vstart[ir * 3 + 2] * voxsize[2];
-
-        xend[ir * 3 + 0] = img_origin[0] + vend[ir * 3 + 0] * voxsize[0];
-        xend[ir * 3 + 1] = img_origin[1] + vend[ir * 3 + 1] * voxsize[1];
-        xend[ir * 3 + 2] = img_origin[2] + vend[ir * 3 + 2] * voxsize[2];
-    }
-
-    std::vector<float> img_fwd(nlors);
-    joseph3d_fwd(
-        xstart.data(), xend.data(), img.data(),
-        img_origin.data(), voxsize.data(), img_fwd.data(),
-        nlors, img_dim.data(), 0, 64);
-
-    std::vector<float> expected_fwd_vals = readArrayFromFile<float>("expected_fwd_vals.txt");
-    float fwd_diff = 0;
-    float eps = 1e-7;
-
-    for (int ir = 0; ir < nlors; ir++)
-    {
-        fwd_diff = std::abs(img_fwd[ir] - expected_fwd_vals[ir]);
-        if (fwd_diff > eps)
-        {
-            std::cerr << "Host array test failed for ray " << ir << "\n";
-            return;
-        }
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////
-
-    // Test the back projection using the defintion of the adjoint operator
-    std::vector<float> bimg(img_dim[0] * img_dim[1] * img_dim[2], 0.0f);
-    std::vector<float> ones(nlors, 1.0f);
-
-    joseph3d_back(
-        xstart.data(), xend.data(), bimg.data(),
-        img_origin.data(), voxsize.data(), ones.data(),
-        nlors, img_dim.data());
-
-    printf("\nback projection of ones along all rays:\n");
-    for (size_t i0 = 0; i0 < img_dim[0]; i0++)
-    {
-        for (size_t i1 = 0; i1 < img_dim[1]; i1++)
-        {
-            for (size_t i2 = 0; i2 < img_dim[2]; i2++)
-            {
-                printf("%.1f ", bimg[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2]);
-            }
-            printf("\n");
-        }
-        printf("\n");
-    }
-
-    // To test whether the back projection is correct, we test if the back projector is the adjoint
-    // of the forward projector. This is more practical than checking a lot of single voxels in the
-    // back projected image.
-
-    float inner_product1 = std::inner_product(img.begin(), img.end(), bimg.begin(), 0.0f);
-    float inner_product2 = std::inner_product(img_fwd.begin(), img_fwd.end(), ones.begin(), 0.0f);
-
-    float ip_diff = fabs(inner_product1 - inner_product2);
-
-    if (ip_diff > eps)
-    {
-        printf("\n#########################################################################");
-        printf("\nback projection test failed. back projection seems not to be the adjoint.");
-        printf("\n %.7e", ip_diff);
-        printf("\n#########################################################################\n");
-        std::cerr << "Back projection via adjointness test failed.\n";
-    }
 }
 
 void test_cuda_managed_arrays()
