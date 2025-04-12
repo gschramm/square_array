@@ -193,10 +193,12 @@ int main()
     cudaFree(voxsize);
     cudaFree(img_origin);
     cudaFree(img);
+    cudaFree(vstart);
+    cudaFree(vend);
     cudaFree(xstart);
     cudaFree(xend);
     cudaFree(img_fwd);
-
+    cudaFree(expected_fwd_vals);
     cudaFree(bimg);
     cudaFree(ones);
 
