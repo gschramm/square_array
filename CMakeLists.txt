@@ -142,10 +142,37 @@ install(FILES
 
 enable_testing()
 
+set(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/tests)
+
+# List all the .txt files that need to be copied
+set(TEST_DATA_FILES
+    img.txt
+    vstart.txt
+    vend.txt
+    expected_fwd_vals.txt
+)
+
+# Copy each file to the build directory
+foreach(TEST_FILE ${TEST_DATA_FILES})
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/${TEST_FILE}
+        COMMAND ${CMAKE_COMMAND} -E copy ${TEST_DATA_DIR}/${TEST_FILE} ${CMAKE_BINARY_DIR}/${TEST_FILE}
+        DEPENDS ${TEST_DATA_DIR}/${TEST_FILE}
+    )
+    list(APPEND TEST_DATA_OUTPUTS ${CMAKE_BINARY_DIR}/${TEST_FILE})
+endforeach()
+
+# Add a custom target to ensure the files are copied before running tests
+add_custom_target(copy_test_data ALL DEPENDS ${TEST_DATA_OUTPUTS})
+
+# Add the directory containing file_utils.h to the include paths
+include_directories(${CMAKE_SOURCE_DIR}/tests)
+
 foreach(TEST_SOURCE ${TEST_SOURCES})
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
     add_executable(${TEST_NAME} ${TEST_SOURCE})
-    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests)
+    add_dependencies(${TEST_NAME} copy_test_data) # Ensure test data is copied before running tests
     if(CMAKE_CUDA_COMPILER)
         target_link_libraries(${TEST_NAME} PRIVATE parallelproj CUDA::cudart)
     else()

@@ -1,8 +1,10 @@
 #include "parallelproj.h"
+#include "file_utils.h"
 #include <iostream>
 #include <cuda_runtime.h>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 
 int main()
 {
@@ -39,53 +41,25 @@ int main()
         img_origin[i] = (-(float)img_dim[i] / 2 + 0.5) * voxsize[i];
     }
 
+    // read the image from file and convert into a cuda managed array
+    std::vector<float> img_from_file = readArrayFromFile<float>("img.txt");
     float *img;
     cudaMallocManaged(&img, (img_dim[0] * img_dim[1] * img_dim[2]) * sizeof(float));
+    memcpy(img, img_from_file.data(), img_from_file.size() * sizeof(float));
 
-    // fill the test image
-    for (int i0 = 0; i0 < img_dim[0]; i0++)
-    {
-        for (int i1 = 0; i1 < img_dim[1]; i1++)
-        {
-            for (int i2 = 0; i2 < img_dim[2]; i2++)
-            {
-                img[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2] = float(img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2 + 1);
-                printf("%.1f ", img[img_dim[1] * img_dim[2] * i0 + img_dim[2] * i1 + i2]);
-            }
-            printf("\n");
-        }
-        printf("\n");
-    }
+    // read the ray start coordinates in voxel coordinates
+    // reast vstart from vstart.txt and convert into a cuda managed array
+    std::vector<float> vstart_from_file = readArrayFromFile<float>("vstart.txt");
+    float *vstart;
+    cudaMallocManaged(&vstart, (3 * nlors) * sizeof(float));
+    memcpy(vstart, vstart_from_file.data(), vstart_from_file.size() * sizeof(float));
 
-    float id0 = static_cast<float>(img_dim[0]);
-    float id1 = static_cast<float>(img_dim[1]);
-    float id2 = static_cast<float>(img_dim[2]);
-
-    float vstart[] = {
-        0, -1, 0,             // 0
-        0, -1, 0,             // 1
-        0, -1, 1,             // 2
-        0, -1, 0.5,           // 3
-        0, 0, -1,             // 4
-        -1, 0, 0,             // 5
-        id0 - 1, -1, 0,       // 6 - (shifted 1)
-        id0 - 1, -1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, -1,       // 8 - (shifted 4)
-        id0 - 1, id1 - 1, -1, // 9 - (shifted 8)
-    };
-
-    float vend[] = {
-        0, id1, 0,             // 0
-        0, id1, 0,             // 1
-        0, id1, 1,             // 2
-        0, id1, 0.5,           // 3
-        0, 0, id2,             // 4
-        id0, 0, 0,             // 5
-        id0 - 1, id1, 0,       // 6 - (shifted 1)
-        id0 - 1, id1, id2 - 1, // 7 - (shifted 6)
-        id0 - 1, 0, id2,       // 8 - (shifted 4)
-        id0 - 1, id1 - 1, id2, // 9 - (shifted 8)
-    };
+    // read the ray end coordinates in voxel coordinates
+    // read vend from vend.txt and convert into a cuda managed array
+    std::vector<float> vend_from_file = readArrayFromFile<float>("vend.txt");
+    float *vend;
+    cudaMallocManaged(&vend, (3 * nlors) * sizeof(float));
+    memcpy(vend, vend_from_file.data(), vend_from_file.size() * sizeof(float));
 
     for (int ir = 0; ir < nlors; ir++)
     {
@@ -95,28 +69,26 @@ int main()
     }
 
     // calculate the start and end coordinates in world coordinates
-
     float *xstart;
     cudaMallocManaged(&xstart, (3 * nlors) * sizeof(float));
     float *xend;
     cudaMallocManaged(&xend, (3 * nlors) * sizeof(float));
 
     for (int ir = 0; ir < nlors; ir++)
-
     {
-        for (int j = 0; j < 3; j++)
-        {
-            xstart[ir * 3 + j] = img_origin[j] + vstart[ir * 3 + j] * voxsize[j];
-            xend[ir * 3 + j] = img_origin[j] + vend[ir * 3 + j] * voxsize[j];
-        }
+        xstart[ir * 3 + 0] = img_origin[0] + vstart[ir * 3 + 0] * voxsize[0];
+        xstart[ir * 3 + 1] = img_origin[1] + vstart[ir * 3 + 1] * voxsize[1];
+        xstart[ir * 3 + 2] = img_origin[2] + vstart[ir * 3 + 2] * voxsize[2];
+
+        xend[ir * 3 + 0] = img_origin[0] + vend[ir * 3 + 0] * voxsize[0];
+        xend[ir * 3 + 1] = img_origin[1] + vend[ir * 3 + 1] * voxsize[1];
+        xend[ir * 3 + 2] = img_origin[2] + vend[ir * 3 + 2] * voxsize[2];
     }
 
     float *img_fwd;
     cudaMallocManaged(&img_fwd, nlors * sizeof(float));
 
     joseph3d_fwd(xstart, xend, img, img_origin, voxsize, img_fwd, nlors, img_dim, 0, 64);
-
-    // calculate the expected values
 
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
@@ -125,64 +97,11 @@ int main()
     int retval = 0;
     float eps = 1e-7;
 
-    float *expected_fwd_vals = new float[nlors];
-    // initialize expected_fwd_vals with 0s
-    for (int ir = 0; ir < nlors; ir++)
-    {
-        expected_fwd_vals[ir] = 0;
-    }
-
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[0] += img[0 * img_dim[1] * img_dim[2] + i1 * img_dim[2] + 0] * voxsize[1];
-    }
-
-    expected_fwd_vals[1] = expected_fwd_vals[0];
-
-    // calculate the expected value of ray2 from [0,-1,1] to [0,last+1,1]
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[2] += img[0 * img_dim[1] * img_dim[2] + i1 * img_dim[2] + 1] * voxsize[1];
-    }
-
-    // calculate the expected value of ray3 from [0,-1,0.5] to [0,last+1,0.5]
-    expected_fwd_vals[3] = 0.5 * (expected_fwd_vals[0] + expected_fwd_vals[2]);
-
-    // calculate the expected value of ray4 from [0,0,-1] to [0,0,last+1]
-    for (int i2 = 0; i2 < img_dim[2]; i2++)
-    {
-        expected_fwd_vals[4] += img[0 * img_dim[1] * img_dim[2] + 0 * img_dim[2] + i2] * voxsize[2];
-    }
-
-    // calculate the expected value of ray5 from [-1,0,0] to [last+1,0,0]
-    for (int i0 = 0; i0 < img_dim[0]; i0++)
-    {
-        expected_fwd_vals[5] += img[i0 * img_dim[1] * img_dim[2] + 0 * img_dim[2] + 0] * voxsize[0];
-    }
-
-    // calculate the expected value of rays6 from [img_dim[0]-1,-1,0] to [img_dim[0]-1,last+1,0]
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[6] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + i1 * img_dim[2] + 0] * voxsize[1];
-    }
-
-    // calculate the expected value of rays7 from [img_dim[0]-1,-1,img_dim[2]-1] to [img_dim[0]-1,last+1,img_dim[2]-1]
-    for (int i1 = 0; i1 < img_dim[1]; i1++)
-    {
-        expected_fwd_vals[7] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + i1 * img_dim[2] + (img_dim[2] - 1)] * voxsize[1];
-    }
-
-    // calculate the expected value of ray4 from [img_dim[0]-1,0,-1] to [img_dim[0]-1,0,last+1]
-    for (int i2 = 0; i2 < img_dim[2]; i2++)
-    {
-        expected_fwd_vals[8] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + 0 * img_dim[2] + i2] * voxsize[2];
-    }
-
-    // calculate the expected value of ray4 from [img_dim[0]-1,0,-1] to [img_dim[0]-1,0,last+1]
-    for (int i2 = 0; i2 < img_dim[2]; i2++)
-    {
-        expected_fwd_vals[9] += img[(img_dim[0] - 1) * img_dim[1] * img_dim[2] + (img_dim[1] - 1) * img_dim[2] + i2] * voxsize[2];
-    }
+    // read the expected_fwd_vals from expected_fwd_vals.txt and convert into a cuda managed array
+    std::vector<float> expected_fwd_vals_from_file = readArrayFromFile<float>("expected_fwd_vals.txt");
+    float *expected_fwd_vals;
+    cudaMallocManaged(&expected_fwd_vals, (nlors) * sizeof(float));
+    memcpy(expected_fwd_vals, expected_fwd_vals_from_file.data(), expected_fwd_vals_from_file.size() * sizeof(float));
 
     // check if we got the expected results
     float fwd_diff = 0;
@@ -280,8 +199,6 @@ int main()
 
     cudaFree(bimg);
     cudaFree(ones);
-
-    free(expected_fwd_vals);
 
     return retval;
 }
