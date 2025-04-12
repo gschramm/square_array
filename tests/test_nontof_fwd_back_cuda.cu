@@ -34,22 +34,22 @@ void test_cuda_managed_arrays()
         cm_img_origin[i] = (-(float)h_img_dim[i] / 2 + 0.5f) * h_voxsize[i];
     }
 
-    std::vector<float> h_img_from_file = readArrayFromFile<float>("img.txt");
+    std::vector<float> h_img = readArrayFromFile<float>("img.txt");
     float *cm_img;
-    cudaMallocManaged(&cm_img, h_img_from_file.size() * sizeof(float));
-    std::copy(h_img_from_file.begin(), h_img_from_file.end(), cm_img);
+    cudaMallocManaged(&cm_img, h_img.size() * sizeof(float));
+    std::copy(h_img.begin(), h_img.end(), cm_img);
 
-    std::vector<float> h_vstart_from_file = readArrayFromFile<float>("vstart.txt");
+    std::vector<float> h_vstart = readArrayFromFile<float>("vstart.txt");
     float *cm_vstart;
-    cudaMallocManaged(&cm_vstart, h_vstart_from_file.size() * sizeof(float));
-    std::copy(h_vstart_from_file.begin(), h_vstart_from_file.end(), cm_vstart);
+    cudaMallocManaged(&cm_vstart, h_vstart.size() * sizeof(float));
+    std::copy(h_vstart.begin(), h_vstart.end(), cm_vstart);
 
-    std::vector<float> h_vend_from_file = readArrayFromFile<float>("vend.txt");
+    std::vector<float> h_vend = readArrayFromFile<float>("vend.txt");
     float *cm_vend;
-    cudaMallocManaged(&cm_vend, h_vend_from_file.size() * sizeof(float));
-    std::copy(h_vend_from_file.begin(), h_vend_from_file.end(), cm_vend);
+    cudaMallocManaged(&cm_vend, h_vend.size() * sizeof(float));
+    std::copy(h_vend.begin(), h_vend.end(), cm_vend);
 
-    size_t nlors = h_vstart_from_file.size() / 3;
+    size_t nlors = h_vstart.size() / 3;
 
     float *cm_xstart, *cm_xend;
     cudaMallocManaged(&cm_xstart, 3 * nlors * sizeof(float));
@@ -111,7 +111,7 @@ void test_cuda_managed_arrays()
     float inner_product1 = 0.0f;
     float inner_product2 = 0.0f;
 
-    for (size_t i = 0; i < h_img_from_file.size(); i++)
+    for (size_t i = 0; i < h_img.size(); i++)
     {
         inner_product1 += cm_img[i] * cm_bimg[i];
     }
@@ -155,22 +155,22 @@ void test_cuda_device_arrays()
         h_img_origin[i] = (-(float)h_img_dim[i] / 2 + 0.5f) * h_voxsize[i];
     }
 
-    std::vector<float> h_img_from_file = readArrayFromFile<float>("img.txt");
+    std::vector<float> h_img = readArrayFromFile<float>("img.txt");
     float *d_img;
-    cudaMalloc(&d_img, h_img_from_file.size() * sizeof(float));
-    cudaMemcpy(d_img, h_img_from_file.data(), h_img_from_file.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_img, h_img.size() * sizeof(float));
+    cudaMemcpy(d_img, h_img.data(), h_img.size() * sizeof(float), cudaMemcpyHostToDevice);
 
-    std::vector<float> h_vstart_from_file = readArrayFromFile<float>("vstart.txt");
+    std::vector<float> h_vstart = readArrayFromFile<float>("vstart.txt");
     float *d_vstart;
-    cudaMalloc(&d_vstart, h_vstart_from_file.size() * sizeof(float));
-    cudaMemcpy(d_vstart, h_vstart_from_file.data(), h_vstart_from_file.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_vstart, h_vstart.size() * sizeof(float));
+    cudaMemcpy(d_vstart, h_vstart.data(), h_vstart.size() * sizeof(float), cudaMemcpyHostToDevice);
 
-    std::vector<float> h_vend_from_file = readArrayFromFile<float>("vend.txt");
+    std::vector<float> h_vend = readArrayFromFile<float>("vend.txt");
     float *d_vend;
-    cudaMalloc(&d_vend, h_vend_from_file.size() * sizeof(float));
-    cudaMemcpy(d_vend, h_vend_from_file.data(), h_vend_from_file.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_vend, h_vend.size() * sizeof(float));
+    cudaMemcpy(d_vend, h_vend.data(), h_vend.size() * sizeof(float), cudaMemcpyHostToDevice);
 
-    size_t nlors = h_vstart_from_file.size() / 3;
+    size_t nlors = h_vstart.size() / 3;
 
     float *d_xstart, *d_xend;
     cudaMalloc(&d_xstart, 3 * nlors * sizeof(float));
@@ -180,8 +180,8 @@ void test_cuda_device_arrays()
     {
         for (int j = 0; j < 3; j++)
         {
-            float xstart_val = h_img_origin[j] + h_vstart_from_file[ir * 3 + j] * h_voxsize[j];
-            float xend_val = h_img_origin[j] + h_vend_from_file[ir * 3 + j] * h_voxsize[j];
+            float xstart_val = h_img_origin[j] + h_vstart[ir * 3 + j] * h_voxsize[j];
+            float xend_val = h_img_origin[j] + h_vend[ir * 3 + j] * h_voxsize[j];
             cudaMemcpy(&d_xstart[ir * 3 + j], &xstart_val, sizeof(float), cudaMemcpyHostToDevice);
             cudaMemcpy(&d_xend[ir * 3 + j], &xend_val, sizeof(float), cudaMemcpyHostToDevice);
         }
@@ -191,8 +191,8 @@ void test_cuda_device_arrays()
     cudaMalloc(&d_img_fwd, nlors * sizeof(float));
     joseph3d_fwd(d_xstart, d_xend, d_img, h_img_origin, h_voxsize, d_img_fwd, nlors, h_img_dim, 0, 64);
 
-    std::vector<float> h_img_fwd_host(nlors);
-    cudaMemcpy(h_img_fwd_host.data(), d_img_fwd, nlors * sizeof(float), cudaMemcpyDeviceToHost);
+    std::vector<float> h_img_fwd(nlors);
+    cudaMemcpy(h_img_fwd.data(), d_img_fwd, nlors * sizeof(float), cudaMemcpyDeviceToHost);
 
     std::vector<float> h_expected_fwd_vals = readArrayFromFile<float>("expected_fwd_vals.txt");
     float fwd_diff = 0;
@@ -200,7 +200,7 @@ void test_cuda_device_arrays()
 
     for (int ir = 0; ir < nlors; ir++)
     {
-        fwd_diff = std::abs(h_img_fwd_host[ir] - h_expected_fwd_vals[ir]);
+        fwd_diff = std::abs(h_img_fwd[ir] - h_expected_fwd_vals[ir]);
         if (fwd_diff > eps)
         {
             std::cerr << "CUDA device array test failed for ray " << ir << "\n";
@@ -215,14 +215,13 @@ void test_cuda_device_arrays()
 
     float *d_ones;
     cudaMalloc(&d_ones, nlors * sizeof(float));
-    cudaMemset(d_ones, 0, nlors * sizeof(float));
-    std::vector<float> h_ones_host(nlors, 1.0f);
-    cudaMemcpy(d_ones, h_ones_host.data(), nlors * sizeof(float), cudaMemcpyHostToDevice);
+    std::vector<float> h_ones(nlors, 1.0f);
+    cudaMemcpy(d_ones, h_ones.data(), nlors * sizeof(float), cudaMemcpyHostToDevice);
 
     joseph3d_back(d_xstart, d_xend, d_bimg, h_img_origin, h_voxsize, d_ones, nlors, h_img_dim);
 
-    std::vector<float> h_bimg_host(h_img_dim[0] * h_img_dim[1] * h_img_dim[2]);
-    cudaMemcpy(h_bimg_host.data(), d_bimg, h_bimg_host.size() * sizeof(float), cudaMemcpyDeviceToHost);
+    std::vector<float> h_bimg(h_img_dim[0] * h_img_dim[1] * h_img_dim[2]);
+    cudaMemcpy(h_bimg.data(), d_bimg, h_bimg.size() * sizeof(float), cudaMemcpyDeviceToHost);
 
     printf("\nCUDA device back projection of ones along all rays:\n");
     for (size_t i0 = 0; i0 < h_img_dim[0]; i0++)
@@ -231,7 +230,7 @@ void test_cuda_device_arrays()
         {
             for (size_t i2 = 0; i2 < h_img_dim[2]; i2++)
             {
-                printf("%.1f ", h_bimg_host[h_img_dim[1] * h_img_dim[2] * i0 + h_img_dim[2] * i1 + i2]);
+                printf("%.1f ", h_bimg[h_img_dim[1] * h_img_dim[2] * i0 + h_img_dim[2] * i1 + i2]);
             }
             printf("\n");
         }
@@ -242,14 +241,14 @@ void test_cuda_device_arrays()
     float inner_product1 = 0.0f;
     float inner_product2 = 0.0f;
 
-    for (size_t i = 0; i < h_img_from_file.size(); i++)
+    for (size_t i = 0; i < h_img.size(); i++)
     {
-        inner_product1 += h_img_from_file[i] * h_bimg_host[i];
+        inner_product1 += h_img[i] * h_bimg[i];
     }
 
     for (size_t ir = 0; ir < nlors; ir++)
     {
-        inner_product2 += h_img_fwd_host[ir] * h_ones_host[ir];
+        inner_product2 += h_img_fwd[ir] * h_ones[ir];
     }
 
     float ip_diff = fabs(inner_product1 - inner_product2);
