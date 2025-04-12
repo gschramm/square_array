@@ -121,7 +121,10 @@ void joseph3d_fwd(const float *xstart,
     if (free_voxsize)
         cudaFree(d_voxsize);
     if (free_p)
+    {
+        cudaMemcpy(const_cast<float *>(p), d_p, sizeof(float) * nlors, cudaMemcpyDeviceToHost);
         cudaFree(d_p);
+    }
     if (free_img_dim)
         cudaFree(d_img_dim);
 }

@@ -115,7 +115,11 @@ void joseph3d_back(const float *xstart,
     if (free_xend)
         cudaFree(d_xend);
     if (free_img)
+    {
+        // Copy the result back to the host
+        cudaMemcpy(const_cast<float *>(img), d_img, sizeof(float) * img_dim[0] * img_dim[1] * img_dim[2], cudaMemcpyDeviceToHost);
         cudaFree(d_img);
+    }
     if (free_img_origin)
         cudaFree(d_img_origin);
     if (free_voxsize)
