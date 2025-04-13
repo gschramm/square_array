@@ -12,11 +12,9 @@ int main()
     // host array test cases
     ////////////////////////////////////////////////////////
 
-#ifdef __CUDACC__
-    std::cout << "CUDA host array test\n";
-#else
-    std::cout << "OpenMP test\n";
-#endif
+    bool all_tests_passed = true;
+
+    std::cout << "Host array test\n";
 
     std::vector<int> img_dim = {2, 3, 4};
     std::vector<float> voxsize = {4.0f, 3.0f, 2.0f};
@@ -87,6 +85,8 @@ int main()
             std::cerr << "Actual: " << img_fwd[ir] << "\n";
             std::cerr << "Tolerance: " << eps << "\n";
             std::cerr << "Ray index: " << ir << "\n";
+
+            all_tests_passed = false;
         }
     }
 
@@ -133,7 +133,9 @@ int main()
         std::cerr << "Inner product 2: " << inner_product2 << "\n";
         std::cerr << "Difference: " << ip_diff << "\n";
         std::cerr << "Tolerance: " << eps << "\n";
+
+        all_tests_passed = false;
     }
 
-    return 0;
+    return all_tests_passed ? 0 : 1;
 }

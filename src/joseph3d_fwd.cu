@@ -60,9 +60,13 @@ void joseph3d_fwd(const float *xstart,
     handle_cuda_input_array(xend, &d_xend, sizeof(float) * nlors * 3, free_xend, device_id, cudaMemAdviseSetReadMostly);
 
     // Handle img (read mostly)
+    // Copy img_dim to the host if needed to calculate the size
+    int h_img_dim[3];
+    cudaMemcpy(h_img_dim, img_dim, sizeof(int) * 3, cudaMemcpyDeviceToHost);
+    size_t img_size = sizeof(float) * h_img_dim[0] * h_img_dim[1] * h_img_dim[2];
     float *d_img = nullptr;
     bool free_img = false;
-    handle_cuda_input_array(img, &d_img, sizeof(float) * img_dim[0] * img_dim[1] * img_dim[2], free_img, device_id, cudaMemAdviseSetReadMostly);
+    handle_cuda_input_array(img, &d_img, img_size, free_img, device_id, cudaMemAdviseSetReadMostly);
 
     // Handle img_origin (read mostly)
     float *d_img_origin = nullptr;
