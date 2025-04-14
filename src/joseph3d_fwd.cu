@@ -32,6 +32,7 @@ void joseph3d_fwd(const float *xstart,
                   const float *img_origin,
                   const float *voxsize,
                   float *p,
+                  size_t nvoxels,
                   size_t nlors,
                   const int *img_dim,
                   int device_id,
@@ -60,13 +61,9 @@ void joseph3d_fwd(const float *xstart,
     handle_cuda_input_array(xend, &d_xend, sizeof(float) * nlors * 3, free_xend, device_id, cudaMemAdviseSetReadMostly);
 
     // Handle img (read mostly)
-    // Copy img_dim to the host if needed to calculate the size
-    int h_img_dim[3];
-    cudaMemcpy(h_img_dim, img_dim, sizeof(int) * 3, cudaMemcpyDeviceToHost);
-    size_t img_size = sizeof(float) * h_img_dim[0] * h_img_dim[1] * h_img_dim[2];
     float *d_img = nullptr;
     bool free_img = false;
-    handle_cuda_input_array(img, &d_img, img_size, free_img, device_id, cudaMemAdviseSetReadMostly);
+    handle_cuda_input_array(img, &d_img, sizeof(float) * nvoxels, free_img, device_id, cudaMemAdviseSetReadMostly);
 
     // Handle img_origin (read mostly)
     float *d_img_origin = nullptr;
@@ -126,7 +123,7 @@ void joseph3d_fwd(const float *xstart,
         cudaFree(d_voxsize);
     if (free_p)
     {
-        cudaMemcpy(const_cast<float *>(p), d_p, sizeof(float) * nlors, cudaMemcpyDeviceToHost);
+        cudaMemcpy(p, d_p, sizeof(float) * nlors, cudaMemcpyDeviceToHost);
         cudaFree(d_p);
     }
     if (free_img_dim)

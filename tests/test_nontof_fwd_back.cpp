@@ -54,10 +54,12 @@ int main()
     // Allocate memory for forward projection results
     std::vector<float> img_fwd(nlors);
 
+    size_t nvoxels = img_dim[0] * img_dim[1] * img_dim[2];
+
     // Perform forward projection
     joseph3d_fwd(
         xstart.data(), xend.data(), img.data(),
-        img_origin.data(), voxsize.data(), img_fwd.data(),
+        img_origin.data(), voxsize.data(), img_fwd.data(), nvoxels,
         nlors, img_dim.data(), 0, 64);
 
     /////////////////////////////////////////////////////////////////////////////
@@ -100,7 +102,7 @@ int main()
 
     joseph3d_back(
         xstart.data(), xend.data(), bimg.data(),
-        img_origin.data(), voxsize.data(), ones.data(),
+        img_origin.data(), voxsize.data(), ones.data(), nvoxels,
         nlors, img_dim.data());
 
     printf("\nback projection of ones along all rays:\n");
