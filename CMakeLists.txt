@@ -100,6 +100,8 @@ endif()
 ### BUILD THE PYTHON INTERFACE #################################################
 ################################################################################
 
+enable_testing()
+
 # Build the Python interface if enabled
 if(BUILD_PYTHON_INTERFACE)
     # Enable the use of FindPython in pybind11
@@ -118,7 +120,6 @@ if(BUILD_PYTHON_INTERFACE)
         message(STATUS "DLPack found at: ${DLPACK_INCLUDE_DIR}")
     endif()
 
-
     # Add the Python module
     pybind11_add_module(parallelproj_pybind
         src/parallelproj_pybind.cpp
@@ -127,6 +128,63 @@ if(BUILD_PYTHON_INTERFACE)
     target_include_directories(parallelproj_pybind PRIVATE ${CMAKE_SOURCE_DIR}/include)
     # Link the core library to the Python module
     target_link_libraries(parallelproj_pybind PRIVATE parallelproj)
+endif()
+
+
+
+
+################################################################################
+### BUILD TESTS ################################################################
+################################################################################
+
+set(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/tests)
+
+# List all the .txt files that need to be copied
+set(TEST_DATA_FILES
+    img.txt
+    vstart.txt
+    vend.txt
+    expected_fwd_vals.txt
+)
+
+# Copy each file to the build directory
+foreach(TEST_FILE ${TEST_DATA_FILES})
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/${TEST_FILE}
+        COMMAND ${CMAKE_COMMAND} -E copy ${TEST_DATA_DIR}/${TEST_FILE} ${CMAKE_BINARY_DIR}/${TEST_FILE}
+        DEPENDS ${TEST_DATA_DIR}/${TEST_FILE}
+    )
+    list(APPEND TEST_DATA_OUTPUTS ${CMAKE_BINARY_DIR}/${TEST_FILE})
+endforeach()
+
+# Add a custom target to ensure the files are copied before running tests
+add_custom_target(copy_test_data ALL DEPENDS ${TEST_DATA_OUTPUTS})
+
+# Add the directory containing file_utils.h to the include paths
+include_directories(${CMAKE_SOURCE_DIR}/tests)
+
+foreach(TEST_SOURCE ${TEST_SOURCES})
+    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
+    add_executable(${TEST_NAME} ${TEST_SOURCE})
+    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests)
+    add_dependencies(${TEST_NAME} copy_test_data) # Ensure test data is copied before running tests
+    if(CMAKE_CUDA_COMPILER)
+        target_link_libraries(${TEST_NAME} PRIVATE parallelproj CUDA::cudart)
+    else()
+        target_link_libraries(${TEST_NAME} PRIVATE parallelproj OpenMP::OpenMP_CXX)
+    endif()
+    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+endforeach()
+
+if(BUILD_PYTHON_INTERFACE)
+    ### ADD THE PYTHON INTERFACE TESTS ###
+    find_program(PYTEST_EXECUTABLE pytest REQUIRED)
+    add_test(NAME python_interface_test COMMAND pytest ${CMAKE_SOURCE_DIR}/tests)
+
+    # Set PYTHONPATH to include the build directory
+    set_tests_properties(python_interface_test PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}:$ENV{PYTHONPATH}"
+    )
 endif()
 
 
@@ -178,48 +236,3 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/parallelproj
 )
 
-
-################################################################################
-### BUILD TESTS ################################################################
-################################################################################
-
-enable_testing()
-
-set(TEST_DATA_DIR ${CMAKE_SOURCE_DIR}/tests)
-
-# List all the .txt files that need to be copied
-set(TEST_DATA_FILES
-    img.txt
-    vstart.txt
-    vend.txt
-    expected_fwd_vals.txt
-)
-
-# Copy each file to the build directory
-foreach(TEST_FILE ${TEST_DATA_FILES})
-    add_custom_command(
-        OUTPUT ${CMAKE_BINARY_DIR}/${TEST_FILE}
-        COMMAND ${CMAKE_COMMAND} -E copy ${TEST_DATA_DIR}/${TEST_FILE} ${CMAKE_BINARY_DIR}/${TEST_FILE}
-        DEPENDS ${TEST_DATA_DIR}/${TEST_FILE}
-    )
-    list(APPEND TEST_DATA_OUTPUTS ${CMAKE_BINARY_DIR}/${TEST_FILE})
-endforeach()
-
-# Add a custom target to ensure the files are copied before running tests
-add_custom_target(copy_test_data ALL DEPENDS ${TEST_DATA_OUTPUTS})
-
-# Add the directory containing file_utils.h to the include paths
-include_directories(${CMAKE_SOURCE_DIR}/tests)
-
-foreach(TEST_SOURCE ${TEST_SOURCES})
-    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
-    add_executable(${TEST_NAME} ${TEST_SOURCE})
-    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/tests)
-    add_dependencies(${TEST_NAME} copy_test_data) # Ensure test data is copied before running tests
-    if(CMAKE_CUDA_COMPILER)
-        target_link_libraries(${TEST_NAME} PRIVATE parallelproj CUDA::cudart)
-    else()
-        target_link_libraries(${TEST_NAME} PRIVATE parallelproj OpenMP::OpenMP_CXX)
-    endif()
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
-endforeach()
