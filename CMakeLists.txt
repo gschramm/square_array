@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.18)
 project(PARALLELPROJ LANGUAGES C CXX)
 
+# Set the C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Add an option to build the Python interface
+option(BUILD_PYTHON_INTERFACE "Build the Python interface using pybind11" OFF)
+
+
 include(CheckLanguage)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -87,6 +95,40 @@ else()
         tests/test_nontof_fwd_back.cpp
     )
 endif()
+
+################################################################################
+### BUILD THE PYTHON INTERFACE #################################################
+################################################################################
+
+# Build the Python interface if enabled
+if(BUILD_PYTHON_INTERFACE)
+    # Enable the use of FindPython in pybind11
+    set(PYBIND11_FINDPYTHON ON)
+    # Find pybind11
+    find_package(pybind11 REQUIRED)
+
+    find_path(DLPACK_INCLUDE_DIR
+    NAMES dlpack/dlpack.h
+    DOC "Path to the DLPack include directory")
+
+    # Check if DLPack was found
+    if (NOT DLPACK_INCLUDE_DIR)
+        message(FATAL_ERROR "DLPack not found. Please install DLPack via conda or provide the path to dlpack.h.")
+    else()
+        message(STATUS "DLPack found at: ${DLPACK_INCLUDE_DIR}")
+    endif()
+
+
+    # Add the Python module
+    pybind11_add_module(parallelproj_pybind
+        src/parallelproj_pybind.cpp
+    )
+
+    target_include_directories(parallelproj_pybind PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    # Link the core library to the Python module
+    target_link_libraries(parallelproj_pybind PRIVATE parallelproj)
+endif()
+
 
 ################################################################################
 ### INSTALL AND CONFIGS ########################################################
