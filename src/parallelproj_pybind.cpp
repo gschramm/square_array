@@ -83,11 +83,11 @@ void joseph3d_fwd_py(py::object xstart,
     auto [p_ptr, p_shape] = extract_pointer_and_shape<float>(p);
 
     // Validate shapes
-    if (xstart_shape.size() < 2 || xstart_shape[1] != 3)
+    if (xstart_shape.size() < 2 || xstart_shape.back() != 3)
     {
         throw std::invalid_argument("xstart must have at least 2 dims and shape (..., 3)");
     }
-    if (xend_shape.size() < 2 || xend_shape[1] != 3)
+    if (xend_shape.size() < 2 || xend_shape.back() != 3)
     {
         throw std::invalid_argument("xend must have at least 2 dims and shape (..., 3)");
     }
@@ -138,11 +138,11 @@ void joseph3d_back_py(py::object xstart,
     auto [p_ptr, p_shape] = extract_pointer_and_shape<float>(p);
 
     // Validate shapes
-    if (xstart_shape.size() < 2 || xstart_shape[1] != 3)
+    if (xstart_shape.size() < 2 || xstart_shape.back() != 3)
     {
         throw std::invalid_argument("xstart must have at least 2 dims and shape (..., 3)");
     }
-    if (xend_shape.size() < 2 || xend_shape[1] != 3)
+    if (xend_shape.size() < 2 || xend_shape.back() != 3)
     {
         throw std::invalid_argument("xend must have at least 2 dims and shape (..., 3)");
     }
